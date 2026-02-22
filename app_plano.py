@@ -249,14 +249,23 @@ def desenhar_cabecalho_rodape(canvas, doc):
     canvas.saveState()
     largura, altura = landscape(A4)
 
+    # Brasão do RJ no centro superior
+    if os.path.exists("brasao_rj.png"):
+        canvas.drawImage("brasao_rj.png", (largura - 35) / 2.0, altura - 45, width=35, height=35, preserveAspectRatio=True, mask='auto')
+
+    # Texto institucional
     canvas.setFont("Helvetica-Bold", 8)
-    canvas.drawCentredString(largura / 2.0, altura - 55, "GOVERNO DO ESTADO DO RIO DE JANEIRO")
-    canvas.drawCentredString(largura / 2.0, altura - 65, "UNIVERSIDADE ESTADUAL DO NORTE FLUMINENSE DARCY RIBEIRO")
-    canvas.setFont("Helvetica", 9)
+    canvas.drawCentredString(largura / 2.0, altura - 55, "Governo do Estado do Rio de Janeiro")
+    canvas.drawCentredString(largura / 2.0, altura - 65, "Universidade Estadual do Norte Fluminense Darcy Ribeiro")
+
+    # Número da página
+    canvas.setFont("Helvetica", 8)
     canvas.drawCentredString(largura / 2.0, 30, f"Página {doc.page}")
 
+    # Logos nos cantos inferiores
     if os.path.exists("logo_uenf.png"):
         canvas.drawImage("logo_uenf.png", 40, 20, width=80, height=40, preserveAspectRatio=True, mask='auto')
+
     if os.path.exists("logo_prograd_1.png"):
         canvas.drawImage("logo_prograd_1.png", largura - 120, 20, width=80, height=40, preserveAspectRatio=True, mask='auto')
 
@@ -275,8 +284,9 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     estilo_titulo.alignment = TA_CENTER
     estilo_normal = estilos['Normal']
     estilo_normal.alignment = TA_JUSTIFY
+    estilo_normal.leading = 12
 
-    estilo_caixa = ParagraphStyle(name='CaixaTexto', parent=estilos['Normal'], alignment=TA_JUSTIFY, leading=14)
+    estilo_caixa = ParagraphStyle(name='CaixaTexto', parent=estilos['Normal'], alignment=TA_JUSTIFY, leading=12)
     estilo_tabela = ParagraphStyle(name='TabelaTexto', parent=estilos['Normal'], fontSize=9, leading=11)
 
     def texto_seguro(texto):
@@ -319,7 +329,7 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     elementos.append(Spacer(1, 15))
 
     # --- CABEÇALHO ---
-    estilo_info = ParagraphStyle(name='InfoTexto', parent=estilos['Normal'], fontSize=10, leading=14)
+    estilo_info = ParagraphStyle(name='InfoTexto', parent=estilos['Normal'], fontSize=9, leading=14)
     coord_texto = f"<b>Coordenador(a):</b> {texto_seguro(gerais.get('coordenador', ''))}" if gerais.get('coordenador') else ""
 
     extensao_texto = ""
@@ -336,7 +346,7 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
 
     dados_header = [
         [Paragraph(f"<b>Código / Turma:</b> {texto_seguro(gerais.get('codigo', ''))} - {texto_seguro(gerais.get('turma', ''))}", estilo_info),
-         Paragraph(f"<b>Semestre/Ano:</b> {texto_seguro(gerais.get('semestre', ''))}", estilo_info)],
+         Paragraph(f"<b>Ano/Período:</b> {texto_seguro(gerais.get('semestre', ''))}", estilo_info)],
         [Paragraph(f"<b>Professor(a):</b> {texto_seguro(gerais.get('professor', ''))}", estilo_info),
          Paragraph(coord_texto, estilo_info)],
         [Paragraph(f"<b>Laboratório:</b> {texto_seguro(gerais.get('laboratorio', ''))}", estilo_info),
@@ -570,7 +580,7 @@ st.session_state.gerais['coordenador'] = c5.text_input("Coordenador(a)", st.sess
 
 c6, c7 = st.columns([1, 1])
 st.session_state.gerais['laboratorio'] = c6.text_input("Laboratório", st.session_state.gerais.get('laboratorio', ''), key="input_laboratorio")
-st.session_state.gerais['semestre'] = c7.text_input("Semestre/Ano", st.session_state.gerais.get('semestre', ''), key="input_semestre")
+st.session_state.gerais['semestre'] = c7.text_input("Ano/Período", st.session_state.gerais.get('semestre', ''), key="input_semestre")
 
 st.session_state.gerais['ementa'] = st.text_area("Ementa", st.session_state.gerais.get('ementa', ''), height=100, key="area_ementa")
 st.session_state.gerais['objetivo'] = st.text_area("Objetivo Geral", st.session_state.gerais.get('objetivo', ''), height=100, key="area_objetivo")
