@@ -16,7 +16,6 @@ from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT
 from cronograma_auto import gerar_cronograma_automatico, get_cargas_com_auto, get_descricao_carga
 
 # --- FERIADOS DO ANO CORRENTE (2026) ---
-# Definir o ano corrente
 ANO_ATUAL = 2026
 
 def calcular_pascoa(ano):
@@ -39,7 +38,6 @@ def calcular_pascoa(ano):
 
 def get_feriados_2026():
     """Retorna todos os feriados de 2026"""
-    # Páscoa em 2026
     pascoa = calcular_pascoa(2026)
 
     feriados = [
@@ -66,14 +64,12 @@ def get_feriados_2026():
         {"data": pascoa + timedelta(days=60), "nome": "Corpus Christi"},
     ]
 
-    # Ordenar por data
     feriados.sort(key=lambda x: x["data"])
     return feriados
 
-# Obter feriados de 2026
 feriados_2026 = get_feriados_2026()
 
-# --- TEXTOS PADRÃO (OBSERVAÇÕES E FALTAS) ---
+# --- TEXTOS PADRÃO ---
 TEXTO_FALTAS_PADRAO = """Por lei, não há abono de faltas. A legislação exige que o aluno tenha 75% de presença nas atividades para obter aprovação. Portanto, o aluno pode faltar até 25% da carga horária em uma disciplina.
 
 Atestados médicos não abonam faltas, apenas há uma justificativa que já é descontada dos 25% permitidos por lei. Logo, recomenda-se ser parcimonioso ao faltar às aulas, pois isso pode trazer danos ao aprendizado do estudante além de reduzir as possibilidades de faltas para uma situação médica.
@@ -95,7 +91,7 @@ TEXTO_RECOMENDA_PADRAO = """• Estudar com constância à medida que o conteúd
 • Procurar monitoria.
 • Tirar dúvidas com o professor."""
 
-# --- FUNÇÃO PARA CONVERTER DATAS ---
+# --- FUNÇÕES DE CONVERSÃO DE DATAS ---
 def converter_data_para_string(data_valor):
     """Converte data do date picker para string no formato dd/mm/aaaa"""
     if data_valor is None or pd.isna(data_valor):
@@ -121,13 +117,13 @@ def converter_string_para_data(data_str):
         pass
     return None
 
-# --- FUNÇÃO PARA CALCULAR FALTAS PERMITIDAS ---
+# --- FUNÇÕES DE CÁLCULO DE FALTAS ---
 def calcular_faltas_permitidas(carga_horaria):
     """Calcula o número máximo de faltas baseado na carga horária"""
     try:
         carga = int(carga_horaria) if carga_horaria else 0
-        faltas_max = int(carga * 0.25)  # 25% da carga horária
-        dias_falta = faltas_max // 2  # Cada aula tem 2h
+        faltas_max = int(carga * 0.25)
+        dias_falta = faltas_max // 2
         return faltas_max, dias_falta
     except:
         return 0, 0
@@ -151,9 +147,13 @@ As faltas devem ser registradas mensalmente no sistema acadêmico, e o percentua
         return TEXTO_FALTAS_PADRAO
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gerador de Plano de Ensino UENF", layout="wide")
+st.set_page_config(
+    page_title="Gerador de Plano de Ensino de Disciplinas de Graduação - UENF",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- CSS E TRADUÇÃO ---
+# --- CSS PERSONALIZADO ---
 st.markdown("""
     <style>
         [data-testid='stFileUploader'] section button { font-size: 0 !important; color: transparent !important; }
@@ -162,17 +162,11 @@ st.markdown("""
         [data-testid='stFileUploader'] section > div > div::before { content: 'Carregue o arquivo ou solte aqui' !important; font-size: 14px !important; color: #555 !important; display: block !important; margin-bottom: 5px !important; }
         [data-testid='stFileUploader'] section > div > div::after { content: 'Limite de 200MB' !important; font-size: 12px !important; color: #888 !important; display: block !important; margin-top: 5px !important; }
         .stButton button { width: 100%; }
-        .semana-destaque { background-color: #f0f2f6; padding: 10px; border-radius: 5px; }
-        div[data-testid="column"] div[data-testid="stDateInput"] {
-            min-width: 150px;
-        }
-        div[data-testid="column"]:nth-of-type(2) div[data-testid="stButton"] {
-            margin-top: 0px;
-        }
+        div[data-testid="column"] div[data-testid="stDateInput"] { min-width: 150px; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎓 Gerador de Plano de Ensino Institucional - UENF")
+st.title("🎓 Gerador de Plano de Ensino de Disciplinas de Graduação - UENF")
 
 # --- INICIALIZAÇÃO DOS DADOS ---
 if 'gerais' not in st.session_state:
@@ -183,26 +177,29 @@ if 'gerais' not in st.session_state:
         "horas_extensao": 0,
         "ementa": "", "objetivo": ""
     }
+
 if 'extras' not in st.session_state:
     st.session_state.extras = {
         "criterios": "", "bib_basica": "", "bib_complementar": "",
         "tem_exame": True, "data_exame": None,
         "obs_faltas": TEXTO_FALTAS_PADRAO, "obs_recomenda": TEXTO_RECOMENDA_PADRAO
     }
+
 if 'df_cronograma' not in st.session_state:
-    dados_iniciais = [{"Semana": str(i), "Data": "", "Duração": "2 h", "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""} for i in range(1, 18)]
-    dados_iniciais.append({
-        "Semana": "17",
-        "Data": "",
-        "Duração": "2 h",
-        "Conteúdo": "Prova Final",
-        "Estratégia Didática": "Avaliação Escrita",
-        "Avaliação": "Prova"
-    })
+    dados_iniciais = []
+    for i in range(1, 18):
+        dados_iniciais.append({
+            "Semana": str(i),
+            "Data": "",
+            "Duração": "2 h",
+            "Conteúdo": "",
+            "Estratégia Didática": "",
+            "Avaliação": ""
+        })
     st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
     st.session_state['editor_counter'] = 0
 
-# --- FUNÇÕES DE SALVAR, CARREGAR E RESETAR ---
+# --- FUNÇÕES DE SALVAR E CARREGAR ---
 def obter_dados_completos():
     df_salvar = st.session_state.df_cronograma.copy()
     if 'Data' in df_salvar.columns:
@@ -232,13 +229,8 @@ def carregar_projeto(arquivo_json):
                 pass
         st.session_state.extras[chave] = valor
 
-    if not st.session_state.extras.get("obs_faltas"): st.session_state.extras["obs_faltas"] = TEXTO_FALTAS_PADRAO
-    if not st.session_state.extras.get("obs_recomenda"): st.session_state.extras["obs_recomenda"] = TEXTO_RECOMENDA_PADRAO
-
     if "cronograma" in dados:
         df_carregado = pd.DataFrame(dados["cronograma"])
-        if 'Metodologia' in df_carregado.columns:
-            df_carregado.rename(columns={'Metodologia': 'Estratégia Didática'}, inplace=True)
         for col in ["Semana", "Data", "Duração", "Conteúdo", "Estratégia Didática", "Avaliação"]:
             if col not in df_carregado.columns:
                 df_carregado[col] = ""
@@ -256,17 +248,18 @@ def resetar_projeto():
 def desenhar_cabecalho_rodape(canvas, doc):
     canvas.saveState()
     largura, altura = landscape(A4)
-    if os.path.exists("brasao_rj.png"):
-        canvas.drawImage("brasao_rj.png", (largura - 35) / 2.0, altura - 45, width=35, height=35, preserveAspectRatio=True, mask='auto')
+
     canvas.setFont("Helvetica-Bold", 8)
     canvas.drawCentredString(largura / 2.0, altura - 55, "GOVERNO DO ESTADO DO RIO DE JANEIRO")
     canvas.drawCentredString(largura / 2.0, altura - 65, "UNIVERSIDADE ESTADUAL DO NORTE FLUMINENSE DARCY RIBEIRO")
     canvas.setFont("Helvetica", 9)
     canvas.drawCentredString(largura / 2.0, 30, f"Página {doc.page}")
+
     if os.path.exists("logo_uenf.png"):
         canvas.drawImage("logo_uenf.png", 40, 20, width=80, height=40, preserveAspectRatio=True, mask='auto')
-    if os.path.exists("logo_prograd.png"):
-        canvas.drawImage("logo_prograd.png", largura - 120, 20, width=80, height=40, preserveAspectRatio=True, mask='auto')
+    if os.path.exists("logo_prograd_1.png"):
+        canvas.drawImage("logo_prograd_1.png", largura - 120, 20, width=80, height=40, preserveAspectRatio=True, mask='auto')
+
     canvas.restoreState()
 
 def gerar_pdf_buffer(gerais, df_cronograma, extras):
@@ -325,7 +318,7 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     elementos.append(Paragraph(f"Plano de Ensino: {texto_seguro(gerais.get('disciplina', ''))}", estilo_titulo))
     elementos.append(Spacer(1, 15))
 
-    # --- CABEÇALHO EM 2 COLUNAS ---
+    # --- CABEÇALHO ---
     estilo_info = ParagraphStyle(name='InfoTexto', parent=estilos['Normal'], fontSize=10, leading=14)
     coord_texto = f"<b>Coordenador(a):</b> {texto_seguro(gerais.get('coordenador', ''))}" if gerais.get('coordenador') else ""
 
@@ -339,7 +332,7 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
             data_exame = data_exame.strftime("%d/%m/%Y")
         exame_texto = f"<b>Exame Final:</b> {texto_seguro(data_exame)}"
     else:
-        exame_texto = "<b>Exame Final:</b> Não aplicável a esta disciplina"
+        exame_texto = "<b>Exame Final:</b> Não aplicável"
 
     dados_header = [
         [Paragraph(f"<b>Código / Turma:</b> {texto_seguro(gerais.get('codigo', ''))} - {texto_seguro(gerais.get('turma', ''))}", estilo_info),
@@ -372,103 +365,23 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     elementos.append(criar_caixa_texto(texto_seguro(gerais.get('objetivo', ''))))
     elementos.append(Spacer(1, 20))
 
-    # --- CRONOGRAMA DE AULAS ---
+    # --- CRONOGRAMA ---
     elementos.append(PageBreak())
     elementos.append(criar_faixa_azul("Cronograma de Aulas"))
 
     dados_tabela = [["Semana", "Data", "Duração", "Conteúdo Programático", "Estratégia Didática", "Avaliações / Entregas"]]
 
-    semanas_unicas = df_cronograma['Semana'].unique()
-    semana_para_cor = {}
-    cores = [colors.white, colors.HexColor("#F5F5F5")]
-
-    for i, semana in enumerate(semanas_unicas):
-        semana_para_cor[semana] = cores[i % 2]
-
-    contagem_semanas = df_cronograma['Semana'].value_counts().to_dict()
-
-    estilo_grid = [
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2C3E50")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]
-
-    linha_atual = 1
-    semana_anterior = None
-    primeira_linha_semana = {}
-
     for index, row in df_cronograma.iterrows():
-        semana = str(row.get('Semana', '')).strip()
-        if semana and semana not in primeira_linha_semana:
-            primeira_linha_semana[semana] = linha_atual
-        linha_atual += 1
-
-    linha_atual = 1
-
-    for index, row in df_cronograma.iterrows():
-        semana = str(row.get('Semana', '')).strip()
-        semana = '' if semana.lower() in ['nan', 'none', ''] else semana
-
-        if semana and semana in semana_para_cor:
-            cor_fundo = semana_para_cor[semana]
-        else:
-            cor_fundo = colors.white
-
-        estilo_grid.append(('BACKGROUND', (0, linha_atual), (-1, linha_atual), cor_fundo))
-
-        if semana == semana_anterior:
-            semana_display = ''
-        else:
-            semana_display = semana
-            semana_anterior = semana
-
-        data = str(row.get('Data', '')).strip()
-        data = '' if data.lower() in ['nan', 'none', ''] else data
-
-        duracao = str(row.get('Duração', '')).strip()
-        duracao = '' if duracao.lower() in ['nan', 'none', ''] else duracao
-
-        conteudo = str(row.get('Conteúdo', '')).strip()
-        conteudo = '' if conteudo.lower() in ['nan', 'none', ''] else conteudo
-        conteudo_para_tabela = Paragraph(conteudo.replace('\n', '<br/>'), estilo_tabela) if conteudo else ''
-
-        estrategia = str(row.get('Estratégia Didática', '')).strip()
-        estrategia = '' if estrategia.lower() in ['nan', 'none', ''] else estrategia
-        estrategia_para_tabela = Paragraph(estrategia.replace('\n', '<br/>'), estilo_tabela) if estrategia else ''
-
-        avaliacao = str(row.get('Avaliação', '')).strip()
-        avaliacao = '' if avaliacao.lower() in ['nan', 'none', ''] else avaliacao
-        avaliacao_para_tabela = Paragraph(avaliacao.replace('\n', '<br/>'), estilo_tabela) if avaliacao else ''
-
         dados_tabela.append([
-            semana_display,
-            data,
-            duracao,
-            conteudo_para_tabela,
-            estrategia_para_tabela,
-            avaliacao_para_tabela
+            str(row.get('Semana', '')),
+            str(row.get('Data', '')),
+            str(row.get('Duração', '')),
+            Paragraph(texto_seguro(row.get('Conteúdo', '')), estilo_tabela),
+            Paragraph(texto_seguro(row.get('Estratégia Didática', '')), estilo_tabela),
+            Paragraph(texto_seguro(row.get('Avaliação', '')), estilo_tabela)
         ])
 
-        linha_atual += 1
-
-    for semana, primeira_linha in primeira_linha_semana.items():
-        if contagem_semanas.get(semana, 0) > 1:
-            ultima_linha = primeira_linha + contagem_semanas[semana] - 1
-            estilo_grid.append(('SPAN', (0, primeira_linha), (0, ultima_linha)))
-            estilo_grid.append(('VALIGN', (0, primeira_linha), (0, ultima_linha), 'MIDDLE'))
-
-    estilo_grid.extend([
-        ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
-        ('BOX', (0, 0), (-1, -1), 1.0, colors.black),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ])
-
-    larguras_colunas_crono = [
+    larguras_colunas = [
         largura_util * 0.07,
         largura_util * 0.10,
         largura_util * 0.07,
@@ -477,8 +390,21 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
         largura_util * 0.20
     ]
 
-    tabela_crono = Table(dados_tabela, colWidths=larguras_colunas_crono, repeatRows=1)
-    tabela_crono.setStyle(TableStyle(estilo_grid))
+    estilo_tabela_grid = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2C3E50")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
+        ('BOX', (0, 0), (-1, -1), 1.0, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]
+
+    tabela_crono = Table(dados_tabela, colWidths=larguras_colunas, repeatRows=1)
+    tabela_crono.setStyle(TableStyle(estilo_tabela_grid))
 
     elementos.append(tabela_crono)
     elementos.append(Spacer(1, 25))
@@ -518,48 +444,60 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("📂 Gerenciar Arquivo")
-    arquivo_upload = st.file_uploader("Carregar projeto salvo (.json)", type=["json"])
+    arquivo_upload = st.file_uploader("Carregar projeto salvo (.json)", type=["json"], key="uploader")
     if arquivo_upload:
-        if st.button("Restaurar Dados"):
+        if st.button("Restaurar Dados", key="btn_restaurar"):
             carregar_projeto(arquivo_upload)
             st.rerun()
 
     st.divider()
-    nome_arquivo_final = f"Plano_de_Ensino_{st.session_state.gerais['codigo'].strip().replace(' ', '_')}_{st.session_state.gerais['semestre'].strip().replace('/', '_')}"
-    st.download_button(label="💾 Salvar Projeto (JSON)", data=json.dumps(obter_dados_completos(), indent=4, ensure_ascii=False), file_name=f"{nome_arquivo_final}.json", mime="application/json")
+
+    # Garantir que nome_arquivo está definido
+    nome_arquivo = f"Plano_de_Ensino_{st.session_state.gerais['codigo']}_{st.session_state.gerais['semestre']}"
+    nome_arquivo = nome_arquivo.replace(" ", "_").replace("/", "_")
+    if nome_arquivo == "Plano_de_Ensino__":
+        nome_arquivo = "Plano_de_Ensino"
+
+    st.download_button(
+        label="💾 Salvar Projeto (JSON)",
+        data=json.dumps(obter_dados_completos(), indent=4, ensure_ascii=False),
+        file_name=f"{nome_arquivo}.json",
+        mime="application/json",
+        key="btn_salvar_json"
+    )
 
     st.divider()
     st.header("📄 Novo Plano")
     with st.expander("✨ Começar um Novo Plano"):
-        if st.button("🗑️ Limpar Tudo"):
+        if st.button("🗑️ Limpar Tudo", key="btn_limpar_tudo"):
             resetar_projeto()
 
     # --- FERIADOS 2026 ---
-    st.sidebar.divider()
-    with st.sidebar.expander("📅 Feriados 2026"):
-        # Nova estrutura: (Nome do Mês, {dia: "Nome do Feriado"})
+    st.divider()
+    with st.expander("📅 Feriados 2026", expanded=False):
         meses_feriados = [
-            ("Janeiro", {1: "Confrat. Universal", 15: "Santo Amaro"}),
+            ("Janeiro", {1: "Confraternização Universal", 15: "Santo Amaro"}),
             ("Fevereiro", {}),
+            ("Março", {}),
             ("Abril", {21: "Tiradentes", 23: "São Jorge (RJ)"}),
             ("Maio", {1: "Dia do Trabalho"}),
+            ("Junho", {}),
             ("Julho", {}),
             ("Agosto", {6: "São Salvador"}),
             ("Setembro", {7: "Independência"}),
             ("Outubro", {12: "Nossa Sra. Aparecida"}),
-            ("Novembro", {2: "Finados", 15: "Proclamação República",20: "Consciência Negra"}),
+            ("Novembro", {2: "Finados", 15: "Proclamação República", 20: "Consciência Negra"}),
             ("Dezembro", {25: "Natal"})
         ]
 
         pascoa = calcular_pascoa(2026)
         carnaval = pascoa - timedelta(days=47)
         corpus = pascoa + timedelta(days=60)
-        sexta_santa = pascoa - timedelta(days=2) # Adicionada Sexta-feira Santa
+        sexta_santa = pascoa - timedelta(days=2)
 
         st.write("**Feriados Fixos:**")
         for mes_nome, feriados in meses_feriados:
             for dia, nome_feriado in feriados.items():
-                # Formata como: 21/Abr - Tiradentes
                 st.write(f"  • {dia:02d}/{mes_nome[:3]} - {nome_feriado}")
 
         st.write("**Feriados Móveis:**")
@@ -568,238 +506,194 @@ with st.sidebar:
         st.write(f"  • {pascoa.strftime('%d/%m')} - Páscoa")
         st.write(f"  • {corpus.strftime('%d/%m')} - Corpus Christi")
 
-    # --- LOGOS INSTITUCIONAIS ---
-    st.sidebar.divider()
+    # --- LOGOS ---
+    st.divider()
 
-    # CSS aprimorado para forçar a centralização do widget de imagem do Streamlit
-    st.sidebar.markdown("""
-        <style>
-            /* Alinha o container principal */
-            .logo-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 100%;
-            }
+    # Usar colunas para criar margem esquerda
+    col_esquerda, col_logos, col_direita = st.columns([1, 3, 1])
 
-            /* Força os widgets de imagem do Streamlit a centralizarem seu conteúdo */
-            [data-testid="stSidebar"] [data-testid="stImage"] {
-                display: flex;
-                justify-content: center;
-                margin-bottom: 40px; /* Aumenta a distância entre os logos */
-                margin-left: 50px;
-                width: 100%;
-            }
-
-            /* Remove a margem do último logo para não sobrar espaço embaixo */
-            [data-testid="stSidebar"] [data-testid="stImage"]:last-child {
-                margin-bottom: 0px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Renderização na Sidebar
-    with st.sidebar:
-        # Abrimos um container div para envolver os elementos
-        st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-
-        # Logo ProGrad
+    with col_logos:
         if os.path.exists("logo_prograd_1.png"):
-            st.image("logo_prograd_1.png", width=160) # Aumentei um pouco para melhor leitura
+            st.image("logo_prograd_1.png", width=130)
 
-        # Logo UENF
         if os.path.exists("logo_uenf.png"):
-            st.image("logo_uenf.png", width=120)
+            st.image("logo_uenf.png", width=100)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    # --- GERAÇÃO RÁPIDA ---
+    st.divider()
+    st.markdown("### ⚡ Geração Rápida")
 
-    # --- GERAÇÃO RÁPIDA NA SIDEBAR ---
-    st.sidebar.divider()
-    st.sidebar.markdown("### ⚡ Geração Rápida")
-
-    col_sb1, col_sb2 = st.sidebar.columns(2)
-    with col_sb1:
-        if st.sidebar.button("34h (1 aula/semana)", use_container_width=True):
-            df_auto = gerar_cronograma_automatico(34)
-            if df_auto is not None:
-                st.session_state.df_cronograma = df_auto
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("34h", use_container_width=True, key="btn_34h"):
+            df = gerar_cronograma_automatico(34)
+            if df is not None:
+                st.session_state.df_cronograma = df
                 st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-                st.sidebar.success("Cronograma 34h gerado!")
                 st.rerun()
 
-    with col_sb2:
-        if st.sidebar.button("68h (2 aulas/semana)", use_container_width=True):
-            df_auto = gerar_cronograma_automatico(68)
-            if df_auto is not None:
-                st.session_state.df_cronograma = df_auto
+    with col2:
+        if st.button("68h", use_container_width=True, key="btn_68h"):
+            df = gerar_cronograma_automatico(68)
+            if df is not None:
+                st.session_state.df_cronograma = df
                 st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-                st.sidebar.success("Cronograma 68h gerado!")
                 st.rerun()
 
-    col_sb3, col_sb4 = st.sidebar.columns(2)
-    with col_sb3:
-        if st.sidebar.button("102h (3 aulas/semana)", use_container_width=True):
-            df_auto = gerar_cronograma_automatico(102)
-            if df_auto is not None:
-                st.session_state.df_cronograma = df_auto
+    col3, col4 = st.columns(2)
+    with col3:
+        if st.button("102h", use_container_width=True, key="btn_102h"):
+            df = gerar_cronograma_automatico(102)
+            if df is not None:
+                st.session_state.df_cronograma = df
                 st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-                st.sidebar.success("Cronograma 102h gerado!")
                 st.rerun()
 
-    with col_sb4:
-        if st.sidebar.button("Reset (1 aula/semana)", use_container_width=True):
-            dados_iniciais = [{"Semana": str(i), "Data": "", "Duração": "2 h",
-                              "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""}
-                             for i in range(1, 18)]
-            dados_iniciais.append({
-                "Semana": "17",
-                "Data": "",
-                "Duração": "2 h",
-                "Conteúdo": "Prova Final",
-                "Estratégia Didática": "Avaliação Escrita",
-                "Avaliação": "Prova"
-            })
-            st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
+    with col4:
+        if st.button("Reset", use_container_width=True, key="btn_reset_rapido"):
+            dados = [{"Semana": str(i), "Data": "", "Duração": "2 h", "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""} for i in range(1, 18)]
+            st.session_state.df_cronograma = pd.DataFrame(dados)
             st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-            st.sidebar.success("Resetado!")
             st.rerun()
 
 # --- INTERFACE PRINCIPAL ---
 st.subheader("1. Informações Gerais")
 
 c1, c2, c3 = st.columns([2, 1, 1])
-st.session_state.gerais['disciplina'] = c1.text_input("Disciplina", st.session_state.gerais.get('disciplina', ''))
-st.session_state.gerais['codigo'] = c2.text_input("Código", st.session_state.gerais.get('codigo', ''))
-st.session_state.gerais['turma'] = c3.text_input("Turma", st.session_state.gerais.get('turma', ''))
+st.session_state.gerais['disciplina'] = c1.text_input("Disciplina", st.session_state.gerais.get('disciplina', ''), key="input_disciplina")
+st.session_state.gerais['codigo'] = c2.text_input("Código", st.session_state.gerais.get('codigo', ''), key="input_codigo")
+st.session_state.gerais['turma'] = c3.text_input("Turma", st.session_state.gerais.get('turma', ''), key="input_turma")
 
 c4, c5 = st.columns([1, 1])
-st.session_state.gerais['professor'] = c4.text_input("Professor(a)", st.session_state.gerais.get('professor', ''))
-st.session_state.gerais['coordenador'] = c5.text_input("Coordenador(a) (Deixe em branco se não houver)", st.session_state.gerais.get('coordenador', ''))
+st.session_state.gerais['professor'] = c4.text_input("Professor(a)", st.session_state.gerais.get('professor', ''), key="input_professor")
+st.session_state.gerais['coordenador'] = c5.text_input("Coordenador(a)", st.session_state.gerais.get('coordenador', ''), key="input_coordenador")
 
 c6, c7 = st.columns([1, 1])
-st.session_state.gerais['laboratorio'] = c6.text_input("Laboratório", st.session_state.gerais.get('laboratorio', ''))
-st.session_state.gerais['semestre'] = c7.text_input("Semestre/Ano", st.session_state.gerais.get('semestre', ''))
+st.session_state.gerais['laboratorio'] = c6.text_input("Laboratório", st.session_state.gerais.get('laboratorio', ''), key="input_laboratorio")
+st.session_state.gerais['semestre'] = c7.text_input("Semestre/Ano", st.session_state.gerais.get('semestre', ''), key="input_semestre")
 
-st.session_state.gerais['ementa'] = st.text_area("Ementa", st.session_state.gerais.get('ementa', ''))
-st.session_state.gerais['objetivo'] = st.text_area("Objetivo Geral", st.session_state.gerais.get('objetivo', ''))
+st.session_state.gerais['ementa'] = st.text_area("Ementa", st.session_state.gerais.get('ementa', ''), height=100, key="area_ementa")
+st.session_state.gerais['objetivo'] = st.text_area("Objetivo Geral", st.session_state.gerais.get('objetivo', ''), height=100, key="area_objetivo")
 
 st.divider()
 
-# --- SEÇÃO DE CARGA HORÁRIA E GERAÇÃO AUTOMÁTICA ---
+# --- CARGA HORÁRIA ---
 st.subheader("1.1 Configuração de Carga Horária")
 
 c8, c9, c10 = st.columns([1, 1, 1])
 with c8:
-    opcoes_carga = ["", "34", "51", "68", "85", "102"]
-    carga_atual = st.session_state.gerais.get('carga_horaria', '')
-    indice_carga = 0
-    if carga_atual in opcoes_carga:
-        indice_carga = opcoes_carga.index(carga_atual)
+    opcoes = ["", "34", "51", "68", "85", "102"]
+    index = 0
+    if st.session_state.gerais['carga_horaria'] in opcoes:
+        index = opcoes.index(st.session_state.gerais['carga_horaria'])
 
-    carga_selecionada = st.selectbox(
-        "Carga Horária Total",
-        opcoes_carga,
-        key="carga_select",
-        index=indice_carga
-    )
-    st.session_state.gerais['carga_horaria'] = carga_selecionada
+    carga = st.selectbox("Carga Horária Total", opcoes, index=index, key="select_carga")
+    st.session_state.gerais['carga_horaria'] = carga
 
-    if carga_selecionada:
-        descricao = get_descricao_carga(carga_selecionada)
-        st.caption(f"📋 {descricao}")
+    if carga:
+        st.caption(f"📋 {get_descricao_carga(carga)}")
 
 with c9:
-    extensao_atual = st.session_state.gerais.get('horas_extensao', 0)
     st.session_state.gerais['horas_extensao'] = st.number_input(
         "Horas de Extensão",
         min_value=0,
         max_value=100,
-        value=int(extensao_atual) if extensao_atual else 0,
-        step=1
+        value=st.session_state.gerais['horas_extensao'],
+        step=1,
+        key="num_extensao"
     )
 
 with c10:
     st.session_state.gerais['tipo_aprovacao'] = st.selectbox(
         "Tipo de Aprovação",
         ["Média e frequência", "Só frequência"],
-        index=0 if st.session_state.gerais.get('tipo_aprovacao', 'Média e frequência') == 'Média e frequência' else 1
+        index=0 if st.session_state.gerais['tipo_aprovacao'] == "Média e frequência" else 1,
+        key="select_aprovacao"
     )
 
-col_auto1, col_auto2, col_auto3 = st.columns([1, 1, 2])
-with col_auto1:
-    if st.button("⚡ Gerar Estrutura Automática", type="primary", use_container_width=True):
+col_a1, col_a2, col_a3 = st.columns([1, 1, 2])
+with col_a1:
+    if st.button("⚡ Gerar Estrutura", type="primary", use_container_width=True, key="btn_gerar_estrutura"):
         if st.session_state.gerais['carga_horaria']:
-            df_auto = gerar_cronograma_automatico(st.session_state.gerais['carga_horaria'])
-            if df_auto is not None:
-                st.session_state.df_cronograma = df_auto
+            df = gerar_cronograma_automatico(st.session_state.gerais['carga_horaria'])
+            if df is not None:
+                st.session_state.df_cronograma = df
                 st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-                st.success(f"✅ Estrutura gerada para {st.session_state.gerais['carga_horaria']}h!")
+                st.success("Estrutura gerada!")
                 st.rerun()
             else:
-                st.info(f"ℹ️ {st.session_state.gerais['carga_horaria']}h: preenchimento manual. Use o botão 'Inserir Linha' para adicionar atividades.")
-        else:
-            st.warning("⚠️ Selecione uma carga horária primeiro!")
+                st.info("Preenchimento manual necessário")
 
-with col_auto2:
-    if st.button("🔄 Resetar para 1 por semana", use_container_width=True):
-        dados_iniciais = [{"Semana": str(i), "Data": "", "Duração": "2 h",
-                          "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""}
-                         for i in range(1, 18)]
-        dados_iniciais.append({
-            "Semana": "17",
-            "Data": "",
-            "Duração": "2 h",
-            "Conteúdo": "Prova Final",
-            "Estratégia Didática": "Avaliação Escrita",
-            "Avaliação": "Prova"
-        })
-        st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
+with col_a2:
+    if st.button("🔄 Reset 1/semana", use_container_width=True, key="btn_reset_semana"):
+        dados = [{"Semana": str(i), "Data": "", "Duração": "2 h", "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""} for i in range(1, 18)]
+        st.session_state.df_cronograma = pd.DataFrame(dados)
         st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-        st.success("Tabela resetada para 1 atividade por semana!")
         st.rerun()
 
-with col_auto3:
-    cargas_auto = get_cargas_com_auto()
-    st.caption(f"✨ Geração automática disponível para: {', '.join(map(str, cargas_auto))}h")
+with col_a3:
+    st.caption(f"✨ Automático: {', '.join(map(str, get_cargas_com_auto()))}h")
 
 if st.session_state.gerais['carga_horaria']:
-    faltas_max, dias_falta = calcular_faltas_permitidas(st.session_state.gerais['carga_horaria'])
-    st.info(f"📊 **Informações de Frequência:** Carga horária: {st.session_state.gerais['carga_horaria']}h | Máximo de faltas: {faltas_max}h ({dias_falta} dias de 2h)")
+    faltas, dias = calcular_faltas_permitidas(st.session_state.gerais['carga_horaria'])
+    st.info(f"📊 Carga: {st.session_state.gerais['carga_horaria']}h | Faltas: {faltas}h ({dias} dias)")
 
 st.divider()
 
 # --- CRONOGRAMA DE AULAS ---
 st.subheader("2. Cronograma de Aulas")
-st.write("📅 Clique no campo de data para abrir o calendário!")
+st.write("📅 Clique na data para abrir o calendário")
 
 opcoes_duracao = ["", "2 h", "3 h", "4 h"]
 opcoes_estrategia = ["", "Aula Expositiva Dialogada", "Resolução de Exercícios / Problemas", "Aula Prática em Laboratório",
                      "Sala de Aula Invertida", "Apresentação de Seminários", "Estudo Dirigido / Leitura de Texto",
                      "Discussão em Grupo / Debate", "Trabalho de campo", "Atividade extensionista",
                      "Avaliação Escrita / Prova", "Outra"]
-opcoes_avaliacao = ["", "Nenhuma", "Prova 1", "Prova 2", "Prova 3", "Prova", "Relatório", "Lista de exercício",
-                    "Seminário", "Teste online", "Teste", "Trabalho", "Participação", "Projeto Prático",
+opcoes_avaliacao = ["", "Nenhuma", "Prova 1", "Prova 2", "Prova 3", "Prova 4", "Prova Oral","Relatório", "Lista de Exercícios",
+                    "Seminário", "Teste Online", "Teste", "Trabalho", "Participação", "Projeto Prático",
                     "Apresentação Oral", "Outra"]
 
+# Preparar DataFrame para edição - garantir que temos dados
 df_para_edicao = st.session_state.df_cronograma.copy()
 
+# Converter strings de data para objetos date de forma robusta
 if 'Data' in df_para_edicao.columns:
-    df_para_edicao['Data'] = df_para_edicao['Data'].apply(converter_string_para_data)
+    def safe_string_to_date(x):
+        if pd.isna(x) or x == "" or x is None:
+            return None
+        if isinstance(x, date):
+            return x
+        if isinstance(x, str):
+            # Tentar diferentes formatos
+            try:
+                # Formato dd/mm/aaaa
+                return datetime.strptime(x.strip(), "%d/%m/%Y").date()
+            except:
+                try:
+                    # Formato yyyy-mm-dd (ISO)
+                    return datetime.strptime(x.strip(), "%Y-%m-%d").date()
+                except:
+                    return None
+        return None
 
+    # Aplicar conversão apenas para strings, preservar objetos date existentes
+    df_para_edicao['Data'] = df_para_edicao['Data'].apply(safe_string_to_date)
+
+# Data editor com key única
+editor_key = f"data_editor_{st.session_state.get('editor_counter', 0)}"
 df_editado = st.data_editor(
     df_para_edicao,
     num_rows="dynamic",
     use_container_width=True,
     hide_index=False,
-    key=f"data_editor_{st.session_state.get('editor_counter', 0)}",
+    key=editor_key,
     column_config={
         "Semana": st.column_config.TextColumn("Semana", required=False),
         "Data": st.column_config.DateColumn(
             "Data",
             format="DD/MM/YYYY",
-            min_value=date(2020, 1, 1),
-            max_value=date(2030, 12, 31),
-            step=1,
+            min_value=date(2020,1,1),
+            max_value=date(2030,12,31),
             required=False
         ),
         "Duração": st.column_config.SelectboxColumn("Duração", options=opcoes_duracao, required=False),
@@ -809,169 +703,247 @@ df_editado = st.data_editor(
     }
 )
 
-col_salvar, col_recarregar, col_espaco = st.columns([1, 1, 4])
-with col_salvar:
-    if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
+# --- BOTÕES DE CONTROLE DO CRONOGRAMA ---
+col_b1, col_b2, col_b3 = st.columns([1, 1, 4])
+
+with col_b1:
+    if st.button("💾 Salvar Cronograma", type="primary", use_container_width=True, key="btn_salvar_cronograma"):
+        # Criar cópia do DataFrame editado
         df_salvar = df_editado.copy()
+
+        # Converter datas para string no formato brasileiro
         if 'Data' in df_salvar.columns:
-            df_salvar['Data'] = df_salvar['Data'].apply(converter_data_para_string)
+            def safe_date_to_string(x):
+                if pd.isna(x) or x is None:
+                    return ""
+                if isinstance(x, date):
+                    return x.strftime("%d/%m/%Y")
+                if isinstance(x, str):
+                    # Já é string, manter como está
+                    return x
+                return ""
+
+            df_salvar['Data'] = df_salvar['Data'].apply(safe_date_to_string)
+
+        # Salvar no session_state
         st.session_state.df_cronograma = df_salvar
+
+        # Incrementar contador para forçar atualização
         st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-        st.success("Tabela salva com sucesso!")
+
+        st.success("✅ Cronograma salvo com sucesso!")
         st.rerun()
 
-with col_recarregar:
-    if st.button("↻ Recarregar", use_container_width=True):
+with col_b2:
+    if st.button("↻ Recarregar", use_container_width=True, key="btn_recarregar"):
         st.rerun()
 
-with st.expander("👁️ Preview do Cronograma (com cores por semana)"):
-    preview_df = st.session_state.df_cronograma.copy()
+# --- VERIFICAÇÃO DE FERIADOS (CORRIGIDA) ---
+st.divider()
+st.subheader("🔍 Verificação de Feriados")
 
-    def color_semanas(row):
-        semanas_unicas = preview_df['Semana'].unique()
-        semana_atual = row['Semana']
-        if semana_atual in semanas_unicas:
-            idx = list(semanas_unicas).index(semana_atual)
-            if idx % 2 == 0:
-                return ['background-color: #ffffff'] * len(row)
-            else:
-                return ['background-color: #f5f5f5'] * len(row)
-        return [''] * len(row)
+if 'Data' in df_editado.columns:
+    datas_feriados = [f["data"] for f in feriados_2026]
+    nomes_feriados = {f["data"]: f["nome"] for f in feriados_2026}
 
-    styled_df = preview_df.style.apply(color_semanas, axis=1)
-    st.dataframe(styled_df, use_container_width=True)
+    feriados_encontrados = []
 
-st.markdown("#### ➕ Inserir Aula Agrupada na Mesma Semana")
-col_add_select, col_add_button, col_add_info = st.columns([2, 1, 2])
-semanas_existentes = st.session_state.df_cronograma['Semana'].unique().tolist()
-semanas_existentes = [s for s in semanas_existentes if str(s).strip() != ""]
+    for idx, row in df_editado.iterrows():
+        data = row.get('Data')
+        semana = row.get('Semana', '?')
 
-if semanas_existentes:
-    with col_add_select:
-        semana_selecionada = st.selectbox("Escolha a semana:", semanas_existentes, key="semana_select", label_visibility="collapsed")
+        # Verificar se é um objeto date e está na lista de feriados
+        if isinstance(data, date) and data in datas_feriados:
+            nome = nomes_feriados[data]
+            feriados_encontrados.append((semana, data, nome))
 
-    with col_add_button:
-        if st.button("➕ Inserir Linha", use_container_width=True):
+    if feriados_encontrados:
+        st.error("🚨 **ATENÇÃO: Feriados Detectados!**")
+        for semana, data, nome in feriados_encontrados:
+            st.warning(f"📅 Semana {semana}: {data.strftime('%d/%m/%Y')} - **{nome}**")
+    else:
+        st.success("✅ Nenhum feriado detectado nas datas selecionadas.")
+
+# --- PREVIEW DOS DADOS (MOSTRANDO DATAS) ---
+with st.expander("👁️ Visualizar Dados Salvos", expanded=False):
+    # Mostrar o DataFrame com as datas em formato string
+    st.dataframe(st.session_state.df_cronograma, use_container_width=True)
+
+    # Mostrar estatísticas
+    col_stats1, col_stats2, col_stats3 = st.columns(3)
+    with col_stats1:
+        st.metric("Total de Linhas", len(st.session_state.df_cronograma))
+    with col_stats2:
+        semanas_unicas = st.session_state.df_cronograma['Semana'].nunique()
+        st.metric("Semanas Únicas", semanas_unicas)
+    with col_stats3:
+        # Contar quantas datas foram preenchidas (não vazias)
+        datas_preenchidas = st.session_state.df_cronograma['Data'].astype(bool).sum()
+        st.metric("Datas Preenchidas", datas_preenchidas)
+
+    # Mostrar as primeiras datas como exemplo
+    st.write("**Primeiras datas salvas:**")
+    st.write(st.session_state.df_cronograma[['Semana', 'Data']].head())
+
+# --- TESTE DE DATAS (PARA DEBUG - REMOVER DEPOIS) ---
+with st.expander("🔧 Debug - Datas", expanded=False):
+    st.write("**Datas no session_state:**")
+    st.write(st.session_state.df_cronograma[['Semana', 'Data']].head(10))
+
+    st.write("**Tipos das datas:**")
+    for i, val in enumerate(st.session_state.df_cronograma['Data'].head(5)):
+        st.write(f"Linha {i}: {val} - tipo: {type(val)}")
+
+
+
+# --- INSERIR LINHA POR SEMANA ---
+st.divider()
+st.markdown("#### ➕ Inserir Nova Linha em uma Semana")
+
+# CSS simples para alinhamento pela base
+st.markdown("""
+    <style>
+        /* Força todas as colunas a alinharem seu conteúdo pela base */
+        [data-testid="column"] {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            height: 100%;
+        }
+
+        /* Remove margens extras que causam desalinhamento */
+        [data-testid="column"] .stSelectbox,
+        [data-testid="column"] .stButton,
+        [data-testid="column"] .stAlert {
+            margin-bottom: 0 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+semanas = st.session_state.df_cronograma['Semana'].unique()
+semanas = [s for s in semanas if str(s).strip()]
+
+if len(semanas) > 0:
+    col_s1, col_s2, col_s3 = st.columns(3)
+
+    with col_s1:
+        semana_para_inserir = st.selectbox("", semanas, key="semana_inserir_select", label_visibility="collapsed")
+
+    with col_s2:
+        if st.button("➕ Inserir Nova Linha", use_container_width=True, key="btn_inserir_linha"):
             df_atual = st.session_state.df_cronograma.copy()
-            indices = df_atual[df_atual['Semana'] == semana_selecionada].index
+            indices = df_atual[df_atual['Semana'] == semana_para_inserir].index
             if len(indices) > 0:
-                ultimo_indice = indices[-1]
+                posicao_inserir = indices[-1] + 1
                 nova_linha = pd.DataFrame([{
-                    "Semana": semana_selecionada,
+                    "Semana": semana_para_inserir,
                     "Data": "",
                     "Duração": "2 h",
                     "Conteúdo": "",
                     "Estratégia Didática": "",
                     "Avaliação": ""
                 }])
-                df_topo = df_atual.iloc[:ultimo_indice+1]
-                df_fundo = df_atual.iloc[ultimo_indice+1:]
-                st.session_state.df_cronograma = pd.concat([df_topo, nova_linha, df_fundo], ignore_index=True)
+                df_atual = pd.concat([
+                    df_atual.iloc[:posicao_inserir],
+                    nova_linha,
+                    df_atual.iloc[posicao_inserir:]
+                ]).reset_index(drop=True)
+                st.session_state.df_cronograma = df_atual
                 st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-                st.success("Linha inserida!")
+                st.success("✅ Inserido!")
                 st.rerun()
 
-    with col_add_info:
-        df_atual = st.session_state.df_cronograma
-        qtd_atividades = len(df_atual[df_atual['Semana'] == semana_selecionada]) if semana_selecionada in df_atual['Semana'].values else 0
-        st.info(f"Semana {semana_selecionada} tem {qtd_atividades} atividade(s)")
+    with col_s3:
+        qtd_atividades = len(st.session_state.df_cronograma[st.session_state.df_cronograma['Semana'] == semana_para_inserir])
+        st.info(f"📊 {qtd_atividades} atividade(s)")
 else:
-    col_add_select.warning("Adicione semanas primeiro")
-
-with st.expander("⚙️ Opções Avançadas"):
-    if st.button("Resetar para 17 semanas (vazio)"):
-        dados_iniciais = [{"Semana": str(i), "Data": "", "Duração": "2 h", "Conteúdo": "", "Estratégia Didática": "", "Avaliação": ""} for i in range(1, 18)]
-        st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
-        st.session_state['editor_counter'] = st.session_state.get('editor_counter', 0) + 1
-        st.success("Tabela resetada!")
-        st.rerun()
+    st.warning("Nenhuma semana encontrada.")
 
 st.divider()
 
 # --- EXAME FINAL, AVALIAÇÃO E BIBLIOGRAFIA ---
 st.subheader("3. Exame Final, Avaliação e Bibliografia")
-col_exame1, col_exame2 = st.columns([1, 2])
-with col_exame1:
-    tem_exame = st.radio("Há Exame Final?", ["Sim", "Não"], index=0 if st.session_state.extras.get('tem_exame', True) else 1)
+
+col_e1, col_e2 = st.columns([1, 2])
+with col_e1:
+    tem_exame = st.radio("Exame Final?", ["Sim", "Não"], index=0 if st.session_state.extras.get('tem_exame', True) else 1, key="radio_exame")
     st.session_state.extras['tem_exame'] = (tem_exame == "Sim")
-with col_exame2:
+
+with col_e2:
     if st.session_state.extras['tem_exame']:
-        data_exame_atual = st.session_state.extras.get('data_exame')
-        if isinstance(data_exame_atual, str):
+        data_exame = st.session_state.extras.get('data_exame')
+        if isinstance(data_exame, str):
             try:
-                data_exame_atual = datetime.strptime(data_exame_atual, "%d/%m/%Y").date()
+                data_exame = datetime.strptime(data_exame, "%d/%m/%Y").date()
             except:
-                data_exame_atual = None
-        elif not isinstance(data_exame_atual, date):
-            data_exame_atual = None
+                data_exame = None
 
         st.session_state.extras['data_exame'] = st.date_input(
             "Data do Exame Final",
-            value=data_exame_atual,
-            min_value=date(2020, 1, 1),
-            max_value=date(2030, 12, 31),
-            format="DD/MM/YYYY"
+            value=data_exame,
+            format="DD/MM/YYYY",
+            key="date_exame"
         )
-    else:
-        st.info("Exame Final: Não aplicável")
 
-st.session_state.extras['criterios'] = st.text_area("Critérios de Avaliação", st.session_state.extras.get('criterios', ''))
-st.session_state.extras['bib_basica'] = st.text_area("Bibliografia Básica", st.session_state.extras.get('bib_basica', ''))
-st.session_state.extras['bib_complementar'] = st.text_area("Bibliografia Complementar", st.session_state.extras.get('bib_complementar', ''))
+st.session_state.extras['criterios'] = st.text_area("Critérios de Avaliação", st.session_state.extras.get('criterios', ''), height=100, key="area_criterios")
+st.session_state.extras['bib_basica'] = st.text_area("Bibliografia Básica", st.session_state.extras.get('bib_basica', ''), height=100, key="area_bib_basica")
+st.session_state.extras['bib_complementar'] = st.text_area("Bibliografia Complementar", st.session_state.extras.get('bib_complementar', ''), height=100, key="area_bib_comp")
 
 st.divider()
 
 # --- OBSERVAÇÕES ---
 st.subheader("4. Observações e Instruções")
 
-col_atualizar1, col_atualizar2 = st.columns([1, 3])
-with col_atualizar1:
-    if st.button("🔄 Atualizar Texto de Faltas", use_container_width=True):
+col_o1, col_o2 = st.columns([1, 3])
+with col_o1:
+    if st.button("🔄 Atualizar Texto de Faltas", use_container_width=True, key="btn_atualizar_faltas"):
         if st.session_state.gerais.get('carga_horaria'):
             st.session_state.extras['obs_faltas'] = atualizar_texto_faltas(st.session_state.gerais['carga_horaria'])
-            st.success("Texto atualizado!")
             st.rerun()
 
-with col_atualizar2:
-    st.caption("Clique para gerar texto automático baseado na carga horária selecionada")
+with col_o2:
+    st.caption("Clique para gerar texto automático baseado na carga horária")
 
 st.session_state.extras['obs_faltas'] = st.text_area(
     "Regras de Frequência e Faltas",
     st.session_state.extras.get('obs_faltas', ''),
-    height=250
+    height=200,
+    key="area_faltas"
 )
 
 st.session_state.extras['obs_recomenda'] = st.text_area(
     "Recomendações para o Sucesso",
     st.session_state.extras.get('obs_recomenda', ''),
-    height=150
+    height=150,
+    key="area_recomenda"
 )
 
 st.divider()
 
 # --- GERAR PDF ---
-st.subheader("📄 Gerar e Baixar PDF UENF")
+st.subheader("📄 Gerar PDF")
 
-if st.button("🔄 1. Atualizar e Gerar PDF", use_container_width=True):
+if st.button("🔄 Gerar PDF", use_container_width=True, key="btn_gerar_pdf"):
     with st.spinner("Gerando PDF..."):
-        st.session_state.pdf_buffer = gerar_pdf_buffer(st.session_state.gerais, st.session_state.df_cronograma, st.session_state.extras)
-        if st.session_state.pdf_buffer:
+        buffer = gerar_pdf_buffer(st.session_state.gerais, st.session_state.df_cronograma, st.session_state.extras)
+        if buffer:
+            st.session_state.pdf_buffer = buffer
             st.success("✅ PDF gerado com sucesso!")
 
-if 'pdf_buffer' in st.session_state and st.session_state.pdf_buffer is not None:
+if 'pdf_buffer' in st.session_state:
     st.download_button(
-        label="📥 2. Baixar PDF Final",
+        label="📥 Baixar PDF",
         data=st.session_state.pdf_buffer,
-        file_name=f"{nome_arquivo_final}.pdf",
+        file_name=f"{nome_arquivo}.pdf",
         mime="application/pdf",
-        use_container_width=True
+        use_container_width=True,
+        key="btn_download_pdf"
     )
 
 st.divider()
 
 # --- SAIR ---
-st.subheader("🚪 Encerrar Sistema")
-if st.button("Sair do Programa", use_container_width=True):
-    st.error("Desligando o gerador... Você já pode fechar esta aba.")
-    time.sleep(2)
+if st.button("Sair do Programa", use_container_width=True, key="btn_sair"):
+    st.error("Encerrando o programa...")
+    time.sleep(1)
     os._exit(0)
