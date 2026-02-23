@@ -72,7 +72,7 @@ feriados_2026 = get_feriados_2026()
 # --- TEXTOS PADRÃO ---
 TEXTO_FALTAS_PADRAO = """Por lei, não há abono de faltas. A legislação exige que o aluno tenha 75% de presença nas atividades para obter aprovação. Portanto, o aluno pode faltar até 25% da carga horária em uma disciplina.
 
-Atestados médicos não abonam faltas, apenas há uma justificativa que já é descontada dos 25% permitidos por lei. Logo, recomenda-se ser parcimonioso ao faltar às aulas, pois isso pode trazer danos ao aprendizado do estudante além de reduzir as possibilidades de faltas para uma situação médica.
+Atestados médicos não abonam faltas, apenas há uma justificativa que já é descontada dos 25% permitidos por lei. Logo, é recomendado ser parcimonioso ao faltar às aulas. Faltas trazmr danos ao aprendizado do estudante, além de usar os 25% de faltas para uma eventual emergência ou situação médica.
 
 As faltas são registradas em horas. O número de faltas permitidas depende da carga horária da disciplina em que o aluno está matriculado. Para cada aula de 2 horas, são contabilizadas 2 faltas.
 
@@ -84,11 +84,11 @@ Veja alguns exemplos:
 As faltas devem ser registradas mensalmente no sistema acadêmico, e o percentual de presença é atualizado automaticamente. Para casos de saúde em que é necessário faltar até 15 dias (limitado a 60 dias): o aluno deve entrar com solicitação de Regime de Exercícios Escolares, sendo a entrega das atividades obrigatória como compensação às faltas; a não entrega implica no registro da falta."""
 
 TEXTO_RECOMENDA_PADRAO = """• Estudar com constância à medida que o conteúdo for aplicado.
-• Use livros, biblioteca virtual, a leitura é essencial.
-• Estudar antecipadamente.
-• Formar grupos de estudos.
-• Não deixar para estudar na véspera da prova.
-• Procurar monitoria.
+• Use livros, e acesse minha biblioteca no sistema acadêmico. A leitura é essencial;
+• Estude antecipadamente o conteúdo e Resolva lista de exercícios;
+• Forme grupos de estudos;
+• Não deixe para estudar na véspera da prova, faça uma programação de estudos.
+• Frequente a monitoria.
 • Tirar dúvidas com o professor."""
 
 # --- FUNÇÕES DE CONVERSÃO DE DATAS ---
@@ -201,10 +201,12 @@ if 'df_cronograma' not in st.session_state:
 
 # --- FUNÇÕES DE SALVAR E CARREGAR ---
 def obter_dados_completos():
+    # Salvar cronograma com datas em string
     df_salvar = st.session_state.df_cronograma.copy()
     if 'Data' in df_salvar.columns:
         df_salvar['Data'] = df_salvar['Data'].apply(converter_data_para_string)
 
+    # Salvar extras com data_exame em string
     extras_salvar = st.session_state.extras.copy()
     if extras_salvar.get('data_exame') and isinstance(extras_salvar['data_exame'], date):
         extras_salvar['data_exame'] = extras_salvar['data_exame'].strftime("%d/%m/%Y")
@@ -214,34 +216,128 @@ def obter_dados_completos():
         "extras": extras_salvar,
         "cronograma": df_salvar.to_dict(orient='records')
     }
-
 def carregar_projeto(arquivo_json):
-    dados = json.load(arquivo_json)
-    for chave in st.session_state.gerais.keys():
-        st.session_state.gerais[chave] = dados.get("gerais", {}).get(chave, st.session_state.gerais[chave])
+    try:
+        dados = json.load(arquivo_json)
 
-    for chave in st.session_state.extras.keys():
-        valor = dados.get("extras", {}).get(chave, st.session_state.extras[chave])
-        if chave == "data_exame" and valor and isinstance(valor, str):
-            try:
-                valor = datetime.strptime(valor, "%d/%m/%Y").date()
-            except:
-                pass
-        st.session_state.extras[chave] = valor
+        # 1. Dados Gerais - Sincroniza com as chaves 'input_...' e 'area_...'
+        if "gerais" in dados:
+            st.session_state.gerais = dados["gerais"]
+            g = dados["gerais"]
+            st.session_state["input_disciplina"] = g.get("disciplina", "")
+            st.session_state["input_codigo"] = g.get("codigo", "")
+            st.session_state["input_turma"] = g.get("turma", "")
+            st.session_state["input_professor"] = g.get("professor", "")
+            st.session_state["input_coordenador"] = g.get("coordenador", "")
+            st.session_state["input_laboratorio"] = g.get("laboratorio", "")
+            st.session_state["input_semestre"] = g.get("semestre", "")
+            st.session_state["area_ementa"] = g.get("ementa", "")
+            st.session_state["area_objetivo"] = g.get("objetivo", "")
+            st.session_state["input_carga"] = g.get("carga_horaria", "")
 
-    if "cronograma" in dados:
-        df_carregado = pd.DataFrame(dados["cronograma"])
-        for col in ["Semana", "Data", "Duração", "Conteúdo", "Estratégia Didática", "Avaliação"]:
-            if col not in df_carregado.columns:
-                df_carregado[col] = ""
-        st.session_state.df_cronograma = df_carregado
 
-    st.success("Projeto carregado com sucesso!")
+        # 2. Cronograma - O DataFrame já funciona bem assim
+        if "cronograma" in dados:
+            st.session_state.df_cronograma = pd.DataFrame(dados["cronograma"])
+
+        # 3. Extras - Sincroniza com as chaves 'area_...' e 'input_...'
+        if "extras" in dados:
+            st.session_state.extras = dados["extras"]
+            e = dados["extras"]
+            st.session_state["area_criterios"] = e.get("criterios", "")
+            st.session_state["area_bib_basica"] = e.get("bib_basica", "")
+            st.session_state["area_bib_complementar"] = e.get("bib_complementar", "")
+            st.session_state["area_faltas"] = e.get("obs_faltas", "")
+            st.session_state["area_recomenda"] = e.get("obs_recomenda", "")
+            # Caso tenha data de exame
+            if "data_exame" in e and e["data_exame"]:
+                try:
+                    # Converte a string "01/07/2026" para objeto date
+                    st.session_state["input_data_exame"] = datetime.strptime(e["data_exame"], "%d/%m/%Y").date()
+                except:
+                    pass
+
+        st.success("✅ Projeto carregado com sucesso!")
+        time.sleep(1)
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"Erro ao carregar arquivo: {e}")
+
 
 def resetar_projeto():
-    for key in ['gerais', 'extras', 'df_cronograma', 'pdf_buffer', 'editor_counter']:
-        if key in st.session_state:
-            del st.session_state[key]
+    """Reseta completamente o projeto para os valores iniciais"""
+    # Resetar informações gerais
+    st.session_state.gerais = {
+        "disciplina": "", "codigo": "", "turma": "",
+        "laboratorio": "", "coordenador": "", "tipo_aprovacao": "Média e frequência",
+        "professor": "", "semestre": "", "carga_horaria": "",
+        "horas_extensao": 0,
+        "ementa": "", "objetivo": ""
+    }
+
+    # Resetar informações extras
+    st.session_state.extras = {
+        "criterios": "", "bib_basica": "", "bib_complementar": "",
+        "tem_exame": True, "data_exame": None,
+        "obs_faltas": TEXTO_FALTAS_PADRAO, "obs_recomenda": TEXTO_RECOMENDA_PADRAO
+    }
+
+    # Resetar cronograma
+    dados_iniciais = []
+    for i in range(1, 18):
+        dados_iniciais.append({
+            "Semana": str(i),
+            "Data": "",
+            "Duração": "2 h",
+            "Conteúdo": "",
+            "Estratégia Didática": "",
+            "Avaliação": ""
+        })
+    st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
+    st.session_state['editor_counter'] = 0
+
+    # Limpar buffer do PDF se existir
+    if 'pdf_buffer' in st.session_state:
+        del st.session_state.pdf_buffer
+
+    st.rerun()
+def resetar_projeto():
+    """Reseta completamente o projeto para os valores iniciais"""
+    # Resetar informações gerais
+    st.session_state.gerais = {
+        "disciplina": "", "codigo": "", "turma": "",
+        "laboratorio": "", "coordenador": "", "tipo_aprovacao": "Média e frequência",
+        "professor": "", "semestre": "", "carga_horaria": "",
+        "horas_extensao": 0,
+        "ementa": "", "objetivo": ""
+    }
+
+    # Resetar informações extras
+    st.session_state.extras = {
+        "criterios": "", "bib_basica": "", "bib_complementar": "",
+        "tem_exame": True, "data_exame": None,
+        "obs_faltas": TEXTO_FALTAS_PADRAO, "obs_recomenda": TEXTO_RECOMENDA_PADRAO
+    }
+
+    # Resetar cronograma
+    dados_iniciais = []
+    for i in range(1, 18):
+        dados_iniciais.append({
+            "Semana": str(i),
+            "Data": "",
+            "Duração": "2 h",
+            "Conteúdo": "",
+            "Estratégia Didática": "",
+            "Avaliação": ""
+        })
+    st.session_state.df_cronograma = pd.DataFrame(dados_iniciais)
+    st.session_state['editor_counter'] = 0
+
+    # Limpar buffer do PDF se existir
+    if 'pdf_buffer' in st.session_state:
+        del st.session_state.pdf_buffer
+
     st.rerun()
 
 # --- FUNÇÕES PDF ---
@@ -324,11 +420,12 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
         ]))
         return tabela
 
-    # --- TÍTULO ---
+    # --- PÁGINA 1: TÍTULO, CABEÇALHO, EMENTA E OBJETIVO ---
+    # TÍTULO
     elementos.append(Paragraph(f"Plano de Ensino: {texto_seguro(gerais.get('disciplina', ''))}", estilo_titulo))
     elementos.append(Spacer(1, 15))
 
-    # --- CABEÇALHO ---
+    # CABEÇALHO
     estilo_info = ParagraphStyle(name='InfoTexto', parent=estilos['Normal'], fontSize=9, leading=14)
     coord_texto = f"<b>Coordenador(a):</b> {texto_seguro(gerais.get('coordenador', ''))}" if gerais.get('coordenador') else ""
 
@@ -366,16 +463,17 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     elementos.append(tabela_header)
     elementos.append(Spacer(1, 15))
 
-    # --- EMENTA E OBJETIVOS ---
+    # EMENTA
     elementos.append(criar_faixa_azul("Ementa"))
     elementos.append(criar_caixa_texto(texto_seguro(gerais.get('ementa', ''))))
     elementos.append(Spacer(1, 15))
 
+    # OBJETIVO GERAL
     elementos.append(criar_faixa_azul("Objetivo Geral"))
     elementos.append(criar_caixa_texto(texto_seguro(gerais.get('objetivo', ''))))
     elementos.append(Spacer(1, 20))
 
-    # --- CRONOGRAMA ---
+    # --- PÁGINA 2: CRONOGRAMA ---
     elementos.append(PageBreak())
     elementos.append(criar_faixa_azul("Cronograma de Aulas"))
 
@@ -419,19 +517,49 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
     elementos.append(tabela_crono)
     elementos.append(Spacer(1, 25))
 
-    # --- AVALIAÇÃO E BIBLIOGRAFIA ---
+    # --- PÁGINA 3: SISTEMA DE AVALIAÇÃO ---
+    elementos.append(PageBreak())
     elementos.append(criar_faixa_azul("Sistema de Avaliação"))
     elementos.append(criar_caixa_texto(texto_seguro(extras['criterios'])))
     elementos.append(Spacer(1, 15))
 
-    elementos.append(criar_faixa_azul("Bibliografia Básica"))
-    elementos.append(criar_caixa_texto(texto_seguro(extras['bib_basica'])))
-    elementos.append(Spacer(1, 15))
+    # --- PÁGINA 4: BIBLIOGRAFIA ---
+    elementos.append(PageBreak())
 
+    # Bibliografia Básica
+    elementos.append(criar_faixa_azul("Bibliografia Básica"))
+    texto_bib_basica = texto_seguro(extras['bib_basica'])
+    if len(texto_bib_basica.split("<br/>")) > 3:
+        estilo_bib_compacto = ParagraphStyle(
+            name='BibliografiaCompacta',
+            parent=estilo_caixa,
+            fontSize=9,
+            leading=11,
+            alignment=TA_JUSTIFY
+        )
+        linhas_bib = texto_bib_basica.split("<br/>")
+        elementos_bib = []
+        for linha in linhas_bib:
+            if linha.strip():
+                elementos_bib.append([Paragraph(linha, estilo_bib_compacto)])
+        tabela_bib = Table(elementos_bib, colWidths=[largura_util])
+        tabela_bib.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 1, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ]))
+        elementos.append(tabela_bib)
+    else:
+        elementos.append(criar_caixa_texto(texto_bib_basica))
+    elementos.append(Spacer(1, 10))
+
+    # Bibliografia Complementar
     elementos.append(criar_faixa_azul("Bibliografia Complementar"))
     elementos.append(criar_caixa_texto(texto_seguro(extras['bib_complementar'])))
 
-    # --- PÁGINA FINAL ---
+    # --- PÁGINA 5: OBSERVAÇÕES ---
     elementos.append(PageBreak())
     elementos.append(criar_faixa_azul("Observações e Instruções Acadêmicas"))
     elementos.append(Spacer(1, 15))
@@ -570,22 +698,22 @@ with st.sidebar:
 st.subheader("1. Informações Gerais")
 
 c1, c2, c3 = st.columns([2, 1, 1])
-st.session_state.gerais['disciplina'] = c1.text_input("Disciplina", st.session_state.gerais.get('disciplina', ''), key="input_disciplina")
-st.session_state.gerais['codigo'] = c2.text_input("Código", st.session_state.gerais.get('codigo', ''), key="input_codigo")
-st.session_state.gerais['turma'] = c3.text_input("Turma", st.session_state.gerais.get('turma', ''), key="input_turma")
+# Removido o st.session_state.gerais.get(...) de dentro dos parênteses
+st.session_state.gerais['disciplina'] = c1.text_input("Disciplina", key="input_disciplina")
+st.session_state.gerais['codigo'] = c2.text_input("Código", key="input_codigo")
+st.session_state.gerais['turma'] = c3.text_input("Turma", key="input_turma")
 
 c4, c5 = st.columns([1, 1])
-st.session_state.gerais['professor'] = c4.text_input("Professor(a)", st.session_state.gerais.get('professor', ''), key="input_professor")
-st.session_state.gerais['coordenador'] = c5.text_input("Coordenador(a)", st.session_state.gerais.get('coordenador', ''), key="input_coordenador")
+st.session_state.gerais['professor'] = c4.text_input("Professor(a)", key="input_professor")
+st.session_state.gerais['coordenador'] = c5.text_input("Coordenador(a)", key="input_coordenador")
 
 c6, c7 = st.columns([1, 1])
-st.session_state.gerais['laboratorio'] = c6.text_input("Laboratório", st.session_state.gerais.get('laboratorio', ''), key="input_laboratorio")
-st.session_state.gerais['semestre'] = c7.text_input("Ano/Período", st.session_state.gerais.get('semestre', ''), key="input_semestre")
+st.session_state.gerais['laboratorio'] = c6.text_input("Laboratório", key="input_laboratorio")
+st.session_state.gerais['semestre'] = c7.text_input("Ano/Período", key="input_semestre")
 
-st.session_state.gerais['ementa'] = st.text_area("Ementa", st.session_state.gerais.get('ementa', ''), height=100, key="area_ementa")
-st.session_state.gerais['objetivo'] = st.text_area("Objetivo Geral", st.session_state.gerais.get('objetivo', ''), height=100, key="area_objetivo")
-
-st.divider()
+# O mesmo para as áreas de texto
+st.session_state.gerais['ementa'] = st.text_area("Ementa", height=100, key="area_ementa")
+st.session_state.gerais['objetivo'] = st.text_area("Objetivo Geral", height=100, key="area_objetivo")
 
 # --- CARGA HORÁRIA ---
 st.subheader("1.1 Configuração de Carga Horária")
@@ -892,14 +1020,16 @@ with col_e2:
             "Data do Exame Final",
             value=data_exame,
             format="DD/MM/YYYY",
-            key="date_exame"
+            key="input_data_exame"
         )
 
 st.session_state.extras['criterios'] = st.text_area("Critérios de Avaliação", st.session_state.extras.get('criterios', ''), height=100, key="area_criterios")
 st.session_state.extras['bib_basica'] = st.text_area("Bibliografia Básica", st.session_state.extras.get('bib_basica', ''), height=100, key="area_bib_basica")
-st.session_state.extras['bib_complementar'] = st.text_area("Bibliografia Complementar", st.session_state.extras.get('bib_complementar', ''), height=100, key="area_bib_comp")
+st.session_state.extras['bib_complementar'] = st.text_area("Bibliografia Complementar", st.session_state.extras.get('bib_complementar', ''), height=100, key="area_bib_complementar")
 
 st.divider()
+
+
 
 # --- OBSERVAÇÕES ---
 st.subheader("4. Observações e Instruções")
