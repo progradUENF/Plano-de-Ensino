@@ -509,6 +509,11 @@ def gerar_pdf_buffer(gerais, df_cronograma, extras):
         ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
         ('BOX', (0, 0), (-1, -1), 1.0, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+
+        # Alinhar colunas específicas
+        ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Coluna Duração (índice 2) centralizada
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Semana centralizada (opcional)
+        ('ALIGN', (1, 1), (1, -1), 'CENTER'),  # Data centralizada (opcional)
     ]
 
     tabela_crono = Table(dados_tabela, colWidths=larguras_colunas, repeatRows=1)
@@ -1017,11 +1022,10 @@ with col_e2:
                 data_exame = None
 
         st.session_state.extras['data_exame'] = st.date_input(
-            "Data do Exame Final",
-            value=data_exame,
-            format="DD/MM/YYYY",
-            key="input_data_exame"
-        )
+                "Data do Exame Final",
+                format="DD/MM/YYYY",  # Força o formato brasileiro visualmente
+                key="input_data_exame"
+            )
 
 st.session_state.extras['criterios'] = st.text_area("Critérios de Avaliação", st.session_state.extras.get('criterios', ''), height=100, key="area_criterios")
 st.session_state.extras['bib_basica'] = st.text_area("Bibliografia Básica", st.session_state.extras.get('bib_basica', ''), height=100, key="area_bib_basica")
